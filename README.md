@@ -28,7 +28,7 @@ Atune workspace.
 1. **Install**
 
    ```bash
-   git clone <this repo> && cd atune-nextjs-example
+   git clone https://github.com/useatune/atune-nextjs-example.git && cd atune-nextjs-example
    npm install
    cp .env.example .env.local
    ```
