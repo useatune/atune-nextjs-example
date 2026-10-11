@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "atune": {
+      "command": "npx",
+      "args": ["atune", "mcp"],
+      "env": {
+        "ATUNE_API_KEY": "${ATUNE_API_KEY}",
+        "ATUNE_URL": "${ATUNE_URL:-https://useatune.com}"
+      }
+    }
+  }
+}
