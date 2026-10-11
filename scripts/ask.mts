@@ -6,7 +6,7 @@
 // Organization ID. Other entities: user:<accountId>/<userId>, feature:<key>,
 // portfolio. Docs: https://useatune.com/docs/sdk/understand
 //
-// Runs on the server with ATUNE_API_KEY and ATUNE_URL from .env.local.
+// Runs on the server with ATUNE_API_KEY (and optional ATUNE_URL) from .env.local.
 // Requires Node 22.18+ (runs TypeScript directly).
 import { understand } from "atune";
 import type { UnderstandResult } from "atune";
@@ -23,8 +23,8 @@ let result: UnderstandResult;
 try {
   result = await understand(entity, question);
 } catch (error) {
-  // understand() throws when the key or URL is missing, or Atune answers with
-  // an error status (for example 401 for a bad key).
+  // understand() throws when ATUNE_API_KEY is missing, or Atune answers with
+  // an error status (for example 401 for a bad key, 402 when insight is locked).
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 }
