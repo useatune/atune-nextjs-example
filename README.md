@@ -13,7 +13,7 @@ Organizations, and the [`atune`](https://www.npmjs.com/package/atune) SDK.
 | What | Where | Docs |
 |------|-------|------|
 | Capture every signed-in request, chained after Clerk | [`proxy.ts`](proxy.ts) | [createAtuneMiddleware()](https://useatune.com/docs/sdk/middleware) |
-| Resolve the account: the team (Clerk Organization), not the user | [`proxy.ts`](proxy.ts), [`lib/account.ts`](lib/account.ts) | [Next.js guide](https://useatune.com/docs/guides/nextjs) |
+| Resolve the account: the team (Clerk Organization), not the user | [`lib/customer-account.ts`](lib/customer-account.ts), used by [`proxy.ts`](proxy.ts) and [`lib/account.ts`](lib/account.ts) | [Next.js guide](https://useatune.com/docs/guides/nextjs) |
 | Named event from a server action: `project.created` | [`app/projects/actions.ts`](app/projects/actions.ts) | [Track named events](https://useatune.com/docs/guides/named-events) |
 | Named event from a route handler: `project.exported` | [`app/api/projects/[projectId]/export/route.ts`](app/api/projects/%5BprojectId%5D/export/route.ts) | [track()](https://useatune.com/docs/sdk/track) |
 | Names and company names, only under a DPA | [`app/api/webhooks/clerk/route.ts`](app/api/webhooks/clerk/route.ts) | [identify() / group()](https://useatune.com/docs/sdk/identify) |
@@ -38,7 +38,8 @@ Atune workspace.
 
 3. **Atune.** In Atune, open **Settings → API key**. Put the key in
    `ATUNE_API_KEY` in `.env.local` yourself. Don't paste it into an AI chat.
-   Keep `ATUNE_URL=https://useatune.com` (the bare host, no path).
+   `ATUNE_URL` defaults to `https://useatune.com`; set it only for another host
+   (the bare host, no path).
 
 4. **Run**
 
@@ -57,7 +58,7 @@ Atune workspace.
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | no | `/sign-in` and `/sign-up`. |
 | `CLERK_WEBHOOK_SIGNING_SECRET` | yes | Optional. Only for the identity webhook. |
 | `ATUNE_API_KEY` | yes | Atune workspace key. Server-side only. Never prefix it with `NEXT_PUBLIC_`. |
-| `ATUNE_URL` | no | `https://useatune.com`. |
+| `ATUNE_URL` | no | Optional. Defaults to `https://useatune.com`. |
 | `ATUNE_SEND_IDENTITY` | no | `true` only after you have accepted Atune's DPA. |
 
 ## Verify that events arrive
@@ -69,8 +70,8 @@ Atune workspace.
    organization ID (`org_…`, shown on the Projects page) as the account and
    your Clerk user ID as the user.
 
-Nothing there? Check that `ATUNE_API_KEY` is set, that `ATUNE_URL` is the bare
-host, and that you have a team selected. Without a team there is no account,
+Nothing there? Check that `ATUNE_API_KEY` is set, that `ATUNE_URL` (if set) is
+the bare host, that `atune` is 0.1.5 or later, and that you have a team selected. Without a team there is no account,
 and no event is sent. The SDK logs nothing by design.
 
 ## Ask a question
@@ -90,11 +91,16 @@ script says so. With a single test team that is the expected answer at first.
 **Account = the customer you bill.** Here that is a team (a Clerk
 Organization). The same organization ID is used in `proxy.ts`, in every
 `track()` call and in `understand("account:<id>")`. A signed-in user with no
-team selected has no account, so nothing is captured for them. Adjust
-[`lib/account.ts`](lib/account.ts) if your billing unit is different.
+team selected has no account, so nothing is captured for them. The mapping
+lives in one place, [`lib/customer-account.ts`](lib/customer-account.ts).
+If your billing unit is the user when there is no team, use the SDK's
+`clerkAccount(auth)` in `proxy.ts` instead.
 
 **Capture.** [`proxy.ts`](proxy.ts) runs Clerk first (auth and route
-protection stay exactly as they were), then hands the response to Atune.
+protection stay exactly as they were), then hands the response to Atune
+together with the account. Inside a proxy, Clerk's session can only be read
+through the `auth` that `clerkMiddleware` passes to its callback, so the
+account is passed explicitly (`atune` 0.1.5 or later).
 Atune records the request as `http.<method>.<route>` in the background. It
 never reads request bodies and never delays or breaks a request.
 

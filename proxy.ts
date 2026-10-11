@@ -6,6 +6,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { createAtuneMiddleware } from "atune";
+import { customerAccount } from "./lib/customer-account";
 
 // Pages anyone can open, plus the Clerk webhook (it verifies its own signature).
 const isPublicRoute = createRouteMatcher([
@@ -15,25 +16,23 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks/clerk",
 ]);
 
+const atune = createAtuneMiddleware();
+
 export default clerkMiddleware(async (auth, request) => {
   // 1. Your existing auth policy, unchanged.
   if (!isPublicRoute(request)) {
     await auth.protect();
   }
 
-  // 2. Atune capture. The account is the customer you bill: here the Clerk
-  //    Organization (the team), never the individual user. We pass it with
-  //    getAccount, read from the session Clerk just verified, so the mapping is
-  //    explicit. No organization means no account, and no event is sent.
-  const { userId, orgId } = await auth();
-  const atune = createAtuneMiddleware({
-    getAccount: () => (userId && orgId ? { accountId: orgId, userId } : null),
-  });
-
-  // Pass the response you would have returned anyway. atune() returns it
-  // unchanged and records the request in the background (fire-and-forget,
-  // request bodies are never read).
-  return atune(request, NextResponse.next());
+  // 2. Atune capture. Inside a proxy, Clerk's session can only be read through
+  //    the `auth` this callback receives, so pass the account explicitly
+  //    (atune 0.1.5+). Here the account is the team; with the SDK's default
+  //    mapping (team, else user) you would write `{ account: clerkAccount(auth) }`.
+  //
+  //    Pass the response you would have returned anyway. atune() returns it
+  //    unchanged and records the request in the background (fire-and-forget,
+  //    request bodies are never read).
+  return atune(request, NextResponse.next(), { account: auth().then(customerAccount) });
 });
 
 export const config = {
